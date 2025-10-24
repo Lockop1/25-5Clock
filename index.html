@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>25 + 5 Clock</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+
+
+<body>
+    <div id="app"></div>
+
+
+    <!-- React -->
+    <script crossorigin src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+  
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+        function App(){
+            const [breakTime, setBreakTime] = React.useState(5);
+            const [sessionTime, setSessionTime] = React.useState(25);
+            const [timeLeft, setTimeLeft] = React.useState(25 * 60);
+            const [isRunning, setIsRunning] = React.useState(false);
+            const [isSession, setIsSession] = React.useState(true);
+
+            const toggleRunning = () => {setIsRunning(prev => !prev)};
+            const beepRef = React.useRef(null);
+            const isWarning = isRunning && timeLeft <= 60;
+
+
+            const nextTimer = React.useCallback(() => {
+                setIsSession(prevMode => {
+                    const nextMode = !prevMode;
+                    setTimeLeft((nextMode ? sessionTime : breakTime) * 60);
+                    return nextMode;
+                });
+            }, [sessionTime, breakTime]);
+
+            const handleClick = (event) => {
+                const type = event.target.id;
+                const clamp = (num, low = 1, high = 60) => {return Math.max(low, Math.min(num, high))};
+
+                switch(type){
+                    case "break-decrement":
+                        setBreakTime(prev => {
+                            const next = clamp(prev - 1);
+                            if(!isRunning && !isSession) setTimeLeft(next * 60);
+                            return next;
+                        });
+                        break;
+                    case "break-increment":
+                        setBreakTime(prev => {
+                            const next = clamp(prev + 1);
+                            if(!isRunning  && !isSession) setTimeLeft(next * 60);
+                            return next;
+                        });
+                        break;
+                    case "session-decrement":
+                        setSessionTime(prev => {
+                            const next = clamp(prev - 1);
+                            if(!isRunning && isSession) setTimeLeft(next * 60);
+                            return next;
+                        });
+                        break;
+                    case "session-increment":
+                        setSessionTime(prev => {
+                            const next = clamp(prev + 1);
+                            if(!isRunning && isSession) setTimeLeft(next * 60);
+                            return next;
+                        });
+                        break;
+                }
+            };
+            
+            const formatMMSS = (seconds) => {
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                return String(m).padStart(2, '0') + ":" + String(s).padStart(2, '0');
+            };
+
+
+            React.useEffect(() =>{
+                if(!isRunning) return;
+
+                const id = setInterval(() => {
+                    setTimeLeft(prev => (prev > 0 ? prev - 1 : 0));
+                }, 1000);
+
+                return () => clearInterval(id);
+            }, [isRunning]);
+
+            React.useEffect(() =>{
+                if(!isRunning) return;
+                if(timeLeft !== 0) return;
+                
+                try{
+                    if(beepRef.current){
+                        beepRef.current.currentTime = 0;
+                        beepRef.current.play();
+                    }
+                }catch(e){
+                    //Ignore play
+                }
+
+                const id = setTimeout(() =>{
+                    nextTimer();
+                }, 1000);
+
+                return () => clearTimeout(id);
+            }, [timeLeft, isRunning, nextTimer]);
+
+            return(
+                <div id="screen" className="app">
+                    <h1 className="title">25 + 5 Clock</h1>
+                    <div className="panel lengths">
+                        <div className="group">
+                            <div id="break-label" className="label">Break</div>
+                            <div className="row">
+                                <button onClick={handleClick} id="break-decrement">-</button>
+                                <div id="break-length" className="value">{breakTime}</div>
+                                <button onClick={handleClick} id="break-increment">+</button>
+                            </div>
+                        </div>
+
+                        <div className="group">
+                            <div id="session-label" className="label">Session</div>
+                            <div className="row">
+                                <button onClick={handleClick} id="session-decrement">-</button>
+                                <div id="session-length" className="value">{sessionTime}</div>
+                                <button onClick={handleClick} id="session-increment">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="panel timer">
+                        <div id="timer-label" className="label">{isSession ? "Session" : "Break"}</div>
+
+                        <div id="time-left" className={isWarning ? 'warning' : ''}>{formatMMSS(timeLeft)}</div>
+                        <div className="actions">
+                            <button onClick={toggleRunning} id="start_stop">{isRunning ? "Pause" : "Start"}</button>
+                            <button id="reset" onClick={() => {
+                                setIsRunning(false);
+                                setBreakTime(5);
+                                setSessionTime(25);
+                                setTimeLeft(25 * 60);
+                                setIsSession(true);
+                                if (beepRef.current) {
+                                    beepRef.current.pause();
+                                    beepRef.current.currentTime = 0;
+                                }
+                            }}>Reset</button>
+                        </div>
+                    </div>
+                    <p id="by-me"> By: Anthony Newsome</p>
+                    <audio id="beep" ref={beepRef} preload="auto" src="https://raw.githubusercontent.com/freeCodeCamp/cdn/main/build/testable-projects-fcc/audio/BeepSound.wav"/>
+                </div>
+            );
+        }
+        ReactDOM.render(<App />, document.getElementById('app'));
+    </script>
+
+
+
+    <!-- FCC test menu -->
+    <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+</body>
+
+</html>
